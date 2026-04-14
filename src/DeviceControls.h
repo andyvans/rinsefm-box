@@ -25,5 +25,5 @@ private:
 
     int ChannelChangeDelayMs = 750;
 
-    void UpdateDisplay(int channel, const char* url);
+    void UpdateDisplay(int channel, const char* name);
 };

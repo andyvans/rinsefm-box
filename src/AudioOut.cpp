@@ -25,6 +25,12 @@ const char* AudioOut::GetChannelUrl(int channel) const
     return _channels[channel].url;
 }
 
+const char* AudioOut::GetChannelName(int channel) const
+{
+    if (_channels == nullptr || channel < 0 || channel >= _channelCount) return nullptr;
+    return _channels[channel].name;
+}
+
 void AudioOut::Setup(ChannelConfig* channels, int count, int defaultChannel)
 {
     Serial.println("=== Setting up AudioOut ===");

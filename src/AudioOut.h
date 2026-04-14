@@ -35,6 +35,7 @@ public:
     int GetChannelCount();
     int GetCurrentChannel();
     const char* GetChannelUrl(int channel) const;
+    const char* GetChannelName(int channel) const;
     AudioMode GetMode();
 
 private:
