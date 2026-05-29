@@ -1,12 +1,11 @@
 #include <Arduino.h>
-#include <WiFi.h>
+#include <WiFiManager.h>
 #include "AudioOut.h"
 #include "DeviceControls.h"
 #include "ChannelManager.h"
-#include "_Secrets.h"
 
 // Configuration URL - change this to your config file location
-#define CONFIG_URL "https://raw.githubusercontent.com/andyvans/ultimate-radio/main/radio-config.txt"
+#define CONFIG_URL "https://raw.githubusercontent.com/andyvans/rinsefm-box/main/radio-config.txt"
 
 AudioOut* audioOut;
 DeviceControls* deviceControls;
@@ -21,39 +20,44 @@ void setup()
   Serial.begin(115200);
   delay(200);
 
-  Serial.println("\n\n=== RinseFM Box Starting ===");
+  Serial.printf("Free heap: %u bytes\n", ESP.getFreeHeap());
+  Serial.printf("PSRAM size: %u bytes\n", ESP.getPsramSize());
+  Serial.printf("Free PSRAM: %u bytes\n", ESP.getFreePsram());
 
-  // Initialize WiFi with timeout (10 seconds)
+  WiFi.setHostname("UltimateRadio");
+
+  // Connect to WiFi using WiFiManager captive portal
+  WiFiManager wm;
+  wm.setConfigPortalTimeout(180); // 3 minute timeout
   Serial.println("Connecting to WiFi...");
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-
-  int wifiTimeout = 10000; // 10 seconds
-  unsigned long startTime = millis();
-  while (WiFi.status() != WL_CONNECTED && (millis() - startTime) < wifiTimeout)
+  if (wm.autoConnect("RinseFmBox-Setup"))
   {
-    delay(100);
-    Serial.print(".");
-  }
-
-  if (WiFi.status() == WL_CONNECTED)
-  {
-    Serial.println("\nWiFi connected!");
+    Serial.println("WiFi connected!");
+    Serial.print("IP: ");
+    Serial.println(WiFi.localIP());
   }
   else
   {
-    Serial.println("\nWiFi connection timeout - continuing without network");
+    Serial.println("WiFi connection failed - restarting...");
+    ESP.restart();
   }
 
-  radioConfig = nullptr; // ChannelManager::LoadChannels(WIFI_SSID, WIFI_PASSWORD, CONFIG_URL);
+  // AAC support requires PSRAM due to the larger buffers
+  bool supportAac = ESP.getPsramSize() > 0;
+  if (!supportAac)
+    Serial.println("No PSRAM detected - AAC support disabled");
+    
+  Serial.println("=== RinseFM Box Starting ===");
+  
+  radioConfig = ChannelManager::LoadChannels(CONFIG_URL);
   if (radioConfig == nullptr)
   {
     Serial.println("Using default channels");
     radioConfig = ChannelManager::GetDefaultChannels();
   }
 
-  audioOut = new AudioOut();
-  audioOut->Setup(radioConfig->channels, radioConfig->channelCount, radioConfig->defaultChannel);
+  audioOut = new AudioOut(supportAac);
+  audioOut->Setup(radioConfig);
 
   deviceControls = new DeviceControls();
   deviceControls->Setup(audioOut);
